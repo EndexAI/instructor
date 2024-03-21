@@ -7,6 +7,7 @@ from instructor.exceptions import IncompleteOutputException
 from instructor.mode import Mode
 from instructor.utils import extract_json_from_codeblock
 import logging
+import enum
 
 import importlib
 import warnings
