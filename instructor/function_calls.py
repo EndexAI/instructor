@@ -2,16 +2,15 @@ from typing import Any, Dict, Optional, Type, TypeVar
 from docstring_parser import parse
 from functools import wraps
 from pydantic import BaseModel, create_model
-from instructor.exceptions import IncompleteOutputException
 from openai.types.chat import ChatCompletion
+from instructor.exceptions import IncompleteOutputException
 from instructor.mode import Mode
 from instructor.utils import extract_json_from_codeblock
 import logging
+
 import importlib
 import warnings
 
-from .anthropic_utils import json_to_xml, extract_xml, xml_to_model
-import enum
 T = TypeVar("T")
 
 logger = logging.getLogger("instructor")
@@ -99,6 +98,7 @@ class OpenAISchema(BaseModel):  # type: ignore[misc]
     @classmethod
     @property
     def anthropic_schema(cls) -> str:
+        from instructor.anthropic_utils import json_to_xml, extract_xml, xml_to_model
         return json_to_xml(cls)
 
     @classmethod
@@ -123,10 +123,7 @@ class OpenAISchema(BaseModel):  # type: ignore[misc]
         """
         if mode == Mode.ANTHROPIC_TOOLS:
             try:
-                assert isinstance(
-                    completion,
-                    importlib.import_module("anthropic.types.message").Message,
-                )
+                from instructor.anthropic_utils import extract_xml, xml_to_model
             except ImportError as err:
                 raise ImportError("Please 'pip install anthropic' package to proceed.") from err
             assert hasattr(completion, "content")
