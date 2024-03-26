@@ -29,7 +29,6 @@ from typing import (
 
 from instructor.mode import Mode
 
-
 logger = logging.getLogger("instructor")
 
 T_Model = TypeVar("T_Model", bound=BaseModel)
@@ -283,9 +282,9 @@ def handle_response_model(
                 new_kwargs["messages"][0]["content"] += f"\n\n{message}"
         elif mode == Mode.ANTHROPIC_TOOLS:
             tool_descriptions = response_model.anthropic_schema
-            system_prompt = dedent(
-                f"""
-                In this environment you have access to a set of tools you can use to answer the user's question.
+            system_prompt = (
+                dedent(
+                    f"""In this environment you have access to a set of tools you can use to answer the user's question.
                 You may call them like this:
                 <function_calls>
                 <invoke>
@@ -297,9 +296,11 @@ def handle_response_model(
                 </invoke>
                 </function_calls>
 
-                Here are the tools available:\n{tool_descriptions}
-                """
+                Here are the tools available:"""
+                )
+                + tool_descriptions
             )
+
             if "system" in new_kwargs:
                 new_kwargs["system"] = f"{system_prompt}\n{new_kwargs['system']}"
             else:
