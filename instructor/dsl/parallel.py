@@ -18,18 +18,26 @@ from collections.abc import Iterable
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
 
 from instructor.mode import Mode
+
 ## load env variables
 from dotenv import load_dotenv
+
 load_dotenv()
 
 T = TypeVar("T", bound=OpenAISchema)
+
 
 class ParallelBase:
     def __init__(self, *models: Type[OpenAISchema]):
         # Note that for everything else we've created a class, but for parallel base it is an instance
         assert len(models) > 0, "At least one model is required"
         self.models = models
-        names = [model.model_json_schema()["properties"]["name"]["default"] if "name" in model.model_json_schema()["properties"] else model.__name__ for model in models]
+        names = [
+            model.model_json_schema()["properties"]["name"]["default"]
+            if "name" in model.model_json_schema()["properties"]
+            else model.__name__
+            for model in models
+        ]
         self.registry = {name: model for name, model in zip(names, models)}
 
     def from_response(
