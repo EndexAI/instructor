@@ -9,15 +9,11 @@ from instructor.exceptions import IncompleteOutputException
 from instructor.mode import Mode
 import logging
 
-import importlib
-import warnings
 
 T = TypeVar("T")
 
 logger = logging.getLogger("instructor")
 
-
-SPECIAL_ARGUMENTS = ["name", "description"]
 
 class OpenAISchema(BaseModel):  # type: ignore[misc]
     @classmethod  # type: ignore[misc]
@@ -37,13 +33,6 @@ class OpenAISchema(BaseModel):  # type: ignore[misc]
         parameters = {
             k: v for k, v in schema.items() if k not in ("title", "description")
         }
-        
-        special_args = {}
-
-        for argument in SPECIAL_ARGUMENTS:
-            if argument in parameters["properties"]:
-                special_args[argument] = parameters["properties"].pop(argument)["default"]
-
         for param in docstring.params:
             if (name := param.arg_name) in parameters["properties"] and (
                 description := param.description
@@ -65,8 +54,8 @@ class OpenAISchema(BaseModel):  # type: ignore[misc]
                 )
 
         return {
-            "name": special_args.get("name", schema["title"] or cls.__name__),
-            "description": special_args.get("description", schema["description"]),
+            "name": schema["title"],
+            "description": schema["description"],
             "parameters": parameters,
         }
 
