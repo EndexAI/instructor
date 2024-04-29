@@ -4,11 +4,10 @@ import uuid
 import logging
 import inspect
 import functools
-import asyncio
+
 from typing import (
     Any,
     Callable,
-    List,
     Optional,
     TypeVar,
     TypedDict,
@@ -38,7 +37,7 @@ class FinetuneFormat(enum.Enum):
     RAW = "raw"
 
 
-def get_signature_from_fn(fn: Callable) -> str:
+def get_signature_from_fn(fn: Callable[..., Any]) -> str:
     """
     Get the function signature as a string.
 
@@ -64,7 +63,7 @@ def get_signature_from_fn(fn: Callable) -> str:
 
 
 @functools.lru_cache()
-def format_function(func: Callable) -> str:
+def format_function(func: Callable[..., Any]) -> str:
     """
     Format a function as a string with docstring and body.
     """
@@ -102,12 +101,12 @@ class Instructions:
         self,
         name: Optional[str] = None,
         id: Optional[str] = None,
-        log_handlers: Optional[List[logging.Handler]] = None,
+        log_handlers: Optional[list[logging.Handler]] = None,
         finetune_format: FinetuneFormat = FinetuneFormat.MESSAGES,
         indent: int = 2,
         include_code_body: bool = False,
-        openai_client: OpenAI = None,
-    ):
+        openai_client: Optional[OpenAI] = None,
+    ) -> None:
         """
         Instructions for distillation and dispatch.
 
@@ -201,49 +200,7 @@ class Instructions:
                 )
                 return resp
 
-            @functools.wraps(fn)
-            def _dispatch(*args, **kwargs):
-                if asyncio.iscoroutinefunction(fn):
-                    return _dispatch_async(*args, **kwargs)
-                else:
-                    if not is_return_type_base_model_or_instance(fn):
-                        raise TypeError(
-                            "Return type must be a pydantic BaseModel or an instance of it."
-                        )
-                    name = kwargs.pop("name", fn.__name__)
-                    return_base_model = inspect.signature(fn).return_annotation
-                    openai_kwargs = self.openai_kwargs(
-                        name=name,
-                        fn=fn,
-                        args=args,
-                        kwargs=kwargs,
-                        base_model=return_base_model,
-                    )
-                    return self.client.chat.completions.create(
-                        **openai_kwargs, model=model, response_model=return_base_model
-                    )
-
-            @functools.wraps(fn)
-            def _distil(*args, **kwargs):
-                if asyncio.iscoroutinefunction(fn):
-                    return _distil_async(*args, **kwargs)
-                else:
-                    resp = fn(*args, **kwargs)
-                    self.track(
-                        fn,
-                        args,
-                        kwargs,
-                        resp,
-                        name=name,
-                        finetune_format=fine_tune_format,
-                    )
-                    return resp
-
-            if mode == "dispatch":
-                return _dispatch
-
-            if mode == "distil":
-                return _distil
+            return _dispatch if mode == "dispatch" else _distil
 
         if len(args) == 1 and callable(args[0]):
             return _wrap_distil(args[0])
@@ -259,7 +216,7 @@ class Instructions:
         resp: BaseModel,
         name: Optional[str] = None,
         finetune_format: FinetuneFormat = FinetuneFormat.MESSAGES,
-    ):
+    ) -> None:
         """
         Track the function call and response in a log file, later used for finetuning.
 
