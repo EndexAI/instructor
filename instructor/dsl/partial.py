@@ -6,7 +6,10 @@
 # serves as an acknowledgment of the original author's contribution to this project.
 # --------------------------------------------------------------------------------
 
-from pydantic import BaseModel, create_model
+from __future__ import annotations
+
+import pydantic_core
+from pydantic import BaseModel, create_model  # type: ignore - remove once Pydantic is updated
 from pydantic.fields import FieldInfo
 from typing import (
     Any,
@@ -24,10 +27,8 @@ from copy import deepcopy
 from functools import lru_cache
 
 from instructor.mode import Mode
-from instructor.dsl.partialjson import JSONParser
 from instructor.utils import extract_json_from_stream, extract_json_from_stream_async
 
-parser = JSONParser()
 T_Model = TypeVar("T_Model", bound=BaseModel)
 
 
@@ -37,7 +38,7 @@ class MakeFieldsOptional:
 
 def _make_field_optional(
     field: FieldInfo,
-) -> tuple[object, FieldInfo]:
+) -> tuple[Any, FieldInfo]:
     tmp_field = deepcopy(field)
 
     annotation = field.annotation
@@ -71,7 +72,8 @@ def _make_field_optional(
     else:
         tmp_field.annotation = Optional[field.annotation]  # type: ignore[assignment]
         tmp_field.default = None
-    return tmp_field.annotation, tmp_field
+
+    return tmp_field.annotation, tmp_field  # type: ignore
 
 
 class PartialBase(Generic[T_Model]):
@@ -123,47 +125,26 @@ class PartialBase(Generic[T_Model]):
     def model_from_chunks(
         cls, json_chunks: Iterable[Any], **kwargs: Any
     ) -> Generator[T_Model, None, None]:
-        prev_obj = None
         potential_object = ""
         partial_model = cls.get_partial_model()
         for chunk in json_chunks:
             potential_object += chunk
 
-            # Avoid parsing incomplete json when its just whitespace otherwise parser throws an exception
-            task_json = (
-                parser.parse(potential_object) if potential_object.strip() else None
-            )
-            if task_json:
-                obj = partial_model.model_validate(task_json, strict=None, **kwargs)  # type: ignore[attr-defined]
-                if obj != prev_obj:
-                    obj.__dict__["chunk"] = (
-                        chunk  # Provide the raw chunk for debugging and benchmarking
-                    )
-                    prev_obj = obj
-                    yield obj
+            obj = pydantic_core.from_json(potential_object or "{}", allow_partial=True)
+            obj = partial_model.model_validate(obj, strict=None, **kwargs)
+            yield obj
 
     @classmethod
     async def model_from_chunks_async(
         cls, json_chunks: AsyncGenerator[str, None], **kwargs: Any
     ) -> AsyncGenerator[T_Model, None]:
         potential_object = ""
-        prev_obj = None
         partial_model = cls.get_partial_model()
         async for chunk in json_chunks:
             potential_object += chunk
-
-            # Avoid parsing incomplete json when its just whitespace otherwise parser throws an exception
-            task_json = (
-                parser.parse(potential_object) if potential_object.strip() else None
-            )
-            if task_json:
-                obj = partial_model.model_validate(task_json, strict=None, **kwargs)  # type: ignore[attr-defined]
-                if obj != prev_obj:
-                    obj.__dict__["chunk"] = (
-                        chunk  # Provide the raw chunk for debugging and benchmarking
-                    )
-                    prev_obj = obj
-                    yield obj
+            obj = pydantic_core.from_json(potential_object or "{}", allow_partial=True)
+            obj = partial_model.model_validate(obj, strict=None, **kwargs)
+            yield obj
 
     @staticmethod
     def extract_json(
@@ -246,7 +227,7 @@ class Partial(Generic[T_Model]):
         """
         raise TypeError("Cannot subclass {}.Partial".format(cls.__module__))
 
-    def __class_getitem__(  # type: ignore[override]
+    def __class_getitem__(
         cls,
         wrapped_class: type[T_Model] | tuple[type[T_Model], type[MakeFieldsOptional]],
     ) -> type[T_Model]:
@@ -278,7 +259,7 @@ class Partial(Generic[T_Model]):
                 # Recursively apply Partial to each of the generic arguments
                 modified_args = tuple(
                     (
-                        Partial[arg]  # type: ignore[valid-type]
+                        Partial[arg]
                         if isinstance(arg, type) and issubclass(arg, BaseModel)
                         else arg
                     )
@@ -292,7 +273,7 @@ class Partial(Generic[T_Model]):
             # If the field is a BaseModel, then recursively convert it's
             # attributes to optionals.
             elif isinstance(annotation, type) and issubclass(annotation, BaseModel):
-                tmp_field.annotation = Partial[annotation]  # type: ignore[assignment, valid-type]
+                tmp_field.annotation = Partial[annotation]
             return tmp_field.annotation, tmp_field
 
         return create_model(
@@ -311,4 +292,4 @@ class Partial(Generic[T_Model]):
                 )
                 for field_name, field_info in wrapped_class.model_fields.items()
             },
-        )  # type: ignore[all]
+        )  # type: ignore

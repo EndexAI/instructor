@@ -4,6 +4,7 @@ from instructor.utils import (
     extract_json_from_codeblock,
     extract_json_from_stream,
     extract_json_from_stream_async,
+    merge_consecutive_messages,
 )
 
 
@@ -125,3 +126,47 @@ async def test_stream_json_async():
         "key": "value",
         "another_key": [{"key": {"key": "value"}}, {"key": "value"}],
     }
+
+
+def test_merge_consecutive_messages():
+    messages = [
+        {"role": "user", "content": "Hello"},
+        {"role": "user", "content": "How are you"},
+        {"role": "assistant", "content": "Hello"},
+        {"role": "assistant", "content": "I am good"},
+    ]
+    result = merge_consecutive_messages(messages)
+    assert result == [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Hello"},
+                {"type": "text", "text": "How are you"},
+            ],
+        },
+        {
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": "Hello"},
+                {"type": "text", "text": "I am good"},
+            ],
+        },
+    ]
+
+
+def test_merge_consecutive_messages_empty():
+    messages = []
+    result = merge_consecutive_messages(messages)
+    assert result == []
+
+
+def test_merge_consecutive_messages_single():
+    messages = [
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hello"},
+    ]
+    result = merge_consecutive_messages(messages)
+    assert result == [
+        {"role": "user", "content": [{"type": "text", "text": "Hello"}]},
+        {"role": "assistant", "content": [{"type": "text", "text": "Hello"}]},
+    ]

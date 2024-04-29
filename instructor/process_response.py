@@ -1,4 +1,5 @@
 # type: ignore[all]
+from __future__ import annotations
 
 from collections.abc import Iterable
 from textwrap import dedent
@@ -7,25 +8,22 @@ from instructor.dsl.parallel import ParallelBase, ParallelModel, handle_parallel
 from instructor.dsl.partial import PartialBase
 from instructor.dsl.simple_type import AdapterBase, ModelAdapter, is_simple_type
 from instructor.function_calls import OpenAISchema, openai_schema
-
+from instructor.utils import merge_consecutive_messages
 from openai.types.chat import ChatCompletion
 from pydantic import BaseModel
 
-
+import json
 import inspect
 import logging
 from typing import (
     Generator,
     Optional,
-    Type,
-    Tuple,
     get_args,
     get_origin,
     TypeVar,
-    ParamSpec,
     Any,
-    Dict,
 )
+from typing_extensions import ParamSpec
 
 from instructor.mode import Mode
 
@@ -40,9 +38,9 @@ T = TypeVar("T")
 async def process_response_async(
     response: ChatCompletion,
     *,
-    response_model: Type[T_Model | OpenAISchema | BaseModel],
+    response_model: Optional[type[T_Model | OpenAISchema | BaseModel]],
     stream: bool = False,
-    validation_context: Optional[dict] = None,
+    validation_context: Optional[dict[str, Any]] = None,
     strict: Optional[bool] = None,
     mode: Mode = Mode.TOOLS,
 ) -> T_Model | ChatCompletion:
@@ -103,7 +101,7 @@ async def process_response_async(
 def process_response(
     response: T_Model,
     *,
-    response_model: Type[OpenAISchema | BaseModel],
+    response_model: type[OpenAISchema | BaseModel],
     stream: bool,
     validation_context: Optional[dict] = None,
     strict=None,
@@ -168,8 +166,8 @@ def process_response(
 
 
 def handle_response_model(
-    response_model: T, mode: Mode = Mode.TOOLS, **kwargs
-) -> Tuple[Type[OpenAISchema], Dict[str, Any]]:
+    response_model: Optional[type[T]], mode: Mode = Mode.TOOLS, **kwargs: Any
+) -> tuple[type[T], dict[str, Any]]:
     """Prepare the response model type hint, and returns the response_model
     along with the new modified kwargs needed to be able to use the response_model
     parameter with the patch function.
@@ -245,7 +243,7 @@ def handle_response_model(
                 As a genius expert, your task is to understand the content and provide
                 the parsed objects in json that match the following json_schema:\n
 
-                {response_model.model_json_schema()}
+                {json.dumps(response_model.model_json_schema(), indent=2)}
 
                 Make sure to return an instance of the JSON, not the schema itself
                 """
@@ -282,29 +280,72 @@ def handle_response_model(
                 new_kwargs["messages"][0]["content"] += f"\n\n{message}"
         elif mode == Mode.ANTHROPIC_TOOLS:
             tool_descriptions = response_model.anthropic_schema
-            system_prompt = (
-                dedent(
-                    f"""In this environment you have access to a set of tools you can use to answer the user's question.
-                You may call them like this:
-                <function_calls>
-                <invoke>
-                <tool_name>$TOOL_NAME</tool_name>
-                <parameters>
-                <$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
-                ...
-                </parameters>
-                </invoke>
-                </function_calls>
+            new_kwargs["tools"] = [tool_descriptions]
 
-                Here are the tools available:"""
-                )
-                + tool_descriptions
+            system_messages = [
+                m["content"] for m in new_kwargs["messages"] if m["role"] == "system"
+            ]
+            new_kwargs["system"] = "\n\n".join(system_messages)
+            new_kwargs["messages"] = [
+                m for m in new_kwargs["messages"] if m["role"] != "system"
+            ]
+
+        elif mode == Mode.ANTHROPIC_JSON:
+            # anthropic wants system message to be a string so we first extract out any system message
+            openai_system_messages = [
+                message["content"]
+                for message in new_kwargs.get("messages", [])
+                if message["role"] == "system"
+            ]
+
+            new_kwargs["system"] = (
+                new_kwargs.get("system", "")
+                + "\n\n"
+                + "\n\n".join(openai_system_messages)
             )
 
-            if "system" in new_kwargs:
-                new_kwargs["system"] = f"{system_prompt}\n{new_kwargs['system']}"
-            else:
-                new_kwargs["system"] = system_prompt
+            new_kwargs["system"] += f"""
+            You must only response in JSON format that adheres to the following schema:
+
+            <JSON_SCHEMA>
+            {json.dumps(response_model.model_json_schema(), indent=2)}
+            </JSON_SCHEMA>
+            """
+            new_kwargs["system"] = dedent(new_kwargs["system"])
+
+            new_kwargs["messages"] = [
+                message
+                for message in new_kwargs.get("messages", [])
+                if message["role"] != "system"
+            ]
+
+            # the messages array must be alternating roles of user and assistant, we must merge
+            # consecutive user messages into a single message
+            new_kwargs["messages"] = merge_consecutive_messages(new_kwargs["messages"])
+
+        elif mode == Mode.COHERE_TOOLS:
+            instruction = f"""\
+Extract a valid {response_model.__name__} object based on the chat history and the json schema below.
+{response_model.model_json_schema()}
+The JSON schema was obtained by running:
+```python
+schema = {response_model.__name__}.model_json_schema()
+```
+
+The output must be a valid JSON object that `{response_model.__name__}.model_validate_json()` can successfully parse.
+"""
+            messages = new_kwargs.pop("messages", [])
+            chat_history = []
+            for message in messages:
+                # format in Cohere's ChatMessage format
+                chat_history.append(
+                    {
+                        "role": message["role"],
+                        "message": message["content"],
+                    }
+                )
+            new_kwargs["message"] = instruction
+            new_kwargs["chat_history"] = chat_history
         else:
             raise ValueError(f"Invalid patch mode: {mode}")
 
@@ -312,9 +353,11 @@ def handle_response_model(
         f"Instructor Request: {mode.value=}, {response_model=}, {new_kwargs=}",
         extra={
             "mode": mode.value,
-            "response_model": response_model.__name__
-            if response_model is not None
-            else None,
+            "response_model": (
+                response_model.__name__
+                if response_model is not None and hasattr(response_model, "__name__")
+                else str(response_model)
+            ),
             "new_kwargs": new_kwargs,
         },
     )
