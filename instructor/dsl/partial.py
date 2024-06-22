@@ -8,23 +8,21 @@
 
 from __future__ import annotations
 
-import pydantic_core
+from jiter import from_json
 from pydantic import BaseModel, create_model  # type: ignore - remove once Pydantic is updated
 from pydantic.fields import FieldInfo
 from typing import (
     Any,
-    AsyncGenerator,
-    Generator,
     Generic,
     get_args,
     get_origin,
-    Iterable,
     NoReturn,
     Optional,
     TypeVar,
 )
+from collections.abc import AsyncGenerator, Generator, Iterable
 from copy import deepcopy
-from functools import lru_cache
+from functools import cache
 
 from instructor.mode import Mode
 from instructor.utils import extract_json_from_stream, extract_json_from_stream_async
@@ -78,7 +76,7 @@ def _make_field_optional(
 
 class PartialBase(Generic[T_Model]):
     @classmethod
-    @lru_cache(maxsize=None)
+    @cache
     def get_partial_model(cls) -> type[T_Model]:
         """Return a partial model we can use to validate partial results."""
         assert issubclass(
@@ -129,8 +127,9 @@ class PartialBase(Generic[T_Model]):
         partial_model = cls.get_partial_model()
         for chunk in json_chunks:
             potential_object += chunk
-
-            obj = pydantic_core.from_json(potential_object or "{}", allow_partial=True)
+            obj = from_json(
+                (potential_object or "{}").encode(), partial_mode="trailing-strings"
+            )
             obj = partial_model.model_validate(obj, strict=None, **kwargs)
             yield obj
 
@@ -142,7 +141,9 @@ class PartialBase(Generic[T_Model]):
         partial_model = cls.get_partial_model()
         async for chunk in json_chunks:
             potential_object += chunk
-            obj = pydantic_core.from_json(potential_object or "{}", allow_partial=True)
+            obj = from_json(
+                (potential_object or "{}").encode(), partial_mode="trailing-strings"
+            )
             obj = partial_model.model_validate(obj, strict=None, **kwargs)
             yield obj
 
@@ -152,7 +153,14 @@ class PartialBase(Generic[T_Model]):
     ) -> Generator[str, None, None]:
         for chunk in completion:
             try:
-                if chunk.choices:
+                if mode == Mode.ANTHROPIC_JSON:
+                    if json_chunk := chunk.delta.text:
+                        yield json_chunk
+                if mode == Mode.ANTHROPIC_TOOLS:
+                    yield chunk.delta.partial_json
+                if mode == Mode.GEMINI_JSON:
+                    yield chunk.text
+                elif chunk.choices:
                     if mode == Mode.FUNCTIONS:
                         if json_chunk := chunk.choices[0].delta.function_call.arguments:
                             yield json_chunk
@@ -175,7 +183,12 @@ class PartialBase(Generic[T_Model]):
     ) -> AsyncGenerator[str, None]:
         async for chunk in completion:
             try:
-                if chunk.choices:
+                if mode == Mode.ANTHROPIC_JSON:
+                    if json_chunk := chunk.delta.text:
+                        yield json_chunk
+                if mode == Mode.ANTHROPIC_TOOLS:
+                    yield chunk.delta.partial_json
+                elif chunk.choices:
                     if mode == Mode.FUNCTIONS:
                         if json_chunk := chunk.choices[0].delta.function_call.arguments:
                             yield json_chunk
@@ -207,7 +220,7 @@ class Partial(Generic[T_Model]):
         cls,
         *args: object,  # noqa :ARG003
         **kwargs: object,  # noqa :ARG003
-    ) -> "Partial[T_Model]":
+    ) -> Partial[T_Model]:
         """Cannot instantiate.
 
         Raises:
@@ -225,7 +238,7 @@ class Partial(Generic[T_Model]):
         Raises:
            TypeError: Subclassing not allowed.
         """
-        raise TypeError("Cannot subclass {}.Partial".format(cls.__module__))
+        raise TypeError(f"Cannot subclass {cls.__module__}.Partial")
 
     def __class_getitem__(
         cls,

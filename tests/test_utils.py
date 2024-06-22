@@ -1,6 +1,7 @@
 import json
 import pytest
 from instructor.utils import (
+    classproperty,
     extract_json_from_codeblock,
     extract_json_from_stream,
     extract_json_from_stream_async,
@@ -139,17 +140,11 @@ def test_merge_consecutive_messages():
     assert result == [
         {
             "role": "user",
-            "content": [
-                {"type": "text", "text": "Hello"},
-                {"type": "text", "text": "How are you"},
-            ],
+            "content": "Hello\n\nHow are you",
         },
         {
             "role": "assistant",
-            "content": [
-                {"type": "text", "text": "Hello"},
-                {"type": "text", "text": "I am good"},
-            ],
+            "content": "Hello\n\nI am good",
         },
     ]
 
@@ -167,6 +162,26 @@ def test_merge_consecutive_messages_single():
     ]
     result = merge_consecutive_messages(messages)
     assert result == [
-        {"role": "user", "content": [{"type": "text", "text": "Hello"}]},
-        {"role": "assistant", "content": [{"type": "text", "text": "Hello"}]},
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hello"},
     ]
+
+
+def test_classproperty():
+    """Test custom `classproperty` descriptor."""
+
+    class MyClass:
+        @classproperty
+        def my_property(cls):
+            return cls
+
+    assert MyClass.my_property is MyClass
+
+    class MyClass:
+        clvar = 1
+
+        @classproperty
+        def my_property(cls):
+            return cls.clvar
+
+    assert MyClass.my_property == 1
