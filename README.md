@@ -3,12 +3,9 @@
 Instructor is a Python library that makes it a breeze to work with structured outputs from large language models (LLMs). Built on top of Pydantic, it provides a simple, transparent, and user-friendly API to manage validation, retries, and streaming responses. Get ready to supercharge your LLM workflows!
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/jxnlco?style=social)](https://twitter.com/jxnlco)
-[![Discord](https://img.shields.io/discord/1192334452110659664?label=discord)](https://discord.gg/bD9YE9JArw)
+[![Discord](https://img.shields.io/discord/1192334452110659664?label=discord)](https://discord.gg/CV8sPM5k5Y)
 [![Downloads](https://img.shields.io/pypi/dm/instructor.svg)](https://pypi.python.org/pypi/instructor)
 
-## Want your logo on our website?
-
-If your company use instructor a lot, we'd love to have your logo on our website! Please fill out [this form](https://q7gjsgfstrp.typeform.com/to/wluQlVVQ)
 
 ## Key Features
 
@@ -17,7 +14,6 @@ If your company use instructor a lot, we'd love to have your logo on our website
 - **Validation**: Ensure LLM responses conform to your expectations with Pydantic validation
 - **Streaming Support**: Work with Lists and Partial responses effortlessly
 - **Flexible Backends**: Seamlessly integrate with various LLM providers beyond OpenAI
-- **Support in many Languages**: We support many languages including [Python](https://python.useinstructor.com), [TypeScript](https://js.useinstructor.com), [Ruby](https://ruby.useinstructor.com), [Go](https://go.useinstructor.com), and [Elixir](https://hex.pm/packages/instructor)
 
 ## Get Started in Minutes
 
@@ -129,80 +125,6 @@ assert resp.name == "Jason"
 assert resp.age == 25
 ```
 
-### Using Gemini Models
-
-Make sure you [install](https://ai.google.dev/api/python/google/generativeai#setup) the Google AI Python SDK. You should set a `GOOGLE_API_KEY` environment variable with your API key.
-
-```
-pip install google-generativeai
-```
-
-```python
-import instructor
-import google.generativeai as genai
-from pydantic import BaseModel
-
-
-class User(BaseModel):
-    name: str
-    age: int
-
-
-# genai.configure(api_key=os.environ["API_KEY"]) # alternative API key configuration
-client = instructor.from_gemini(
-    client=genai.GenerativeModel(
-        model_name="models/gemini-1.5-flash-latest",  # model defaults to "gemini-pro"
-    ),
-    mode=instructor.Mode.GEMINI_JSON,
-)
-```
-
-
-Alternatively, you can [call Gemini from the OpenAI client](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/call-gemini-using-openai-library#python).You'll have to setup [`gcloud`](https://cloud.google.com/docs/authentication/provide-credentials-adc#local-dev), get setup on Vertex AI, and install the Google Auth library.
-
-```sh
-pip install google-auth
-```
-
-```python
-import google.auth
-import google.auth.transport.requests
-import instructor
-from openai import OpenAI
-from pydantic import BaseModel
-
-creds, project = google.auth.default()
-auth_req = google.auth.transport.requests.Request()
-creds.refresh(auth_req)
-
-# Pass the Vertex endpoint and authentication to the OpenAI SDK
-PROJECT = 'PROJECT_ID'
-LOCATION = 'LOCATION' # https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations
-base_url = f'https://{LOCATION}-aiplatform.googleapis.com/v1beta1/projects/{PROJECT}/locations/{LOCATION}/endpoints/openapi'
-
-client = instructor.from_openai(OpenAI(base_url=base_url, api_key=creds.token), mode=instructor.Mode.JSON)
-# JSON mode is req'd
-class User(BaseModel):
-    name: str
-    age: int
-
-resp = client.chat.completions.create(
-    model="google/gemini-1.5-flash-001",
-    max_tokens=1024,
-    messages=[
-        {
-            "role": "user",
-            "content": "Extract Jason is 25 years old.",
-        }
-    ],
-    response_model=User,
-)
-
-assert isinstance(resp, User)
-assert resp.name == "Jason"
-assert resp.age == 25
-```
-
 
 ### Using Litellm
 
@@ -236,7 +158,7 @@ assert resp.name == "Jason"
 assert resp.age == 25
 ```
 
-## Types are inferred correctly
+## Type are inferred correctly
 
 This was the dream of instructor but due to the patching of openai, it wasnt possible for me to get typing to work well. Now, with the new client, we can get typing to work well! We've also added a few `create_*` methods to make it easier to create iterables and partials, and to access the original completion.
 
@@ -264,7 +186,7 @@ user = client.chat.completions.create(
 )
 ```
 
-Now if you use an IDE, you can see the type is correctly inferred.
+Now if you use a IDE, you can see the type is correctly inferred.
 
 ![type](./docs/blog/posts/img/type.png)
 
@@ -329,9 +251,10 @@ user, completion = client.chat.completions.create_with_completion(
 
 ![with_completion](./docs/blog/posts/img/with_completion.png)
 
+
 ### Streaming Partial Objects: `create_partial`
 
-In order to handle streams, we still support `Iterable[T]` and `Partial[T]` but to simplify the type inference, we've added `create_iterable` and `create_partial` methods as well!
+In order to handle streams, we still support `Iterable[T]` and `Partial[T]` but to simply the type inference, we've added `create_iterable` and `create_partial` methods as well!
 
 ```python
 import openai
@@ -361,13 +284,13 @@ for user in user_stream:
     #> name=None age=None
     #> name=None age=None
     #> name=None age=None
-    #> name=None age=None
-    #> name=None age=None
-    #> name='John Doe' age=None
-    #> name='John Doe' age=None
-    #> name='John Doe' age=None
-    #> name='John Doe' age=30
-    #> name='John Doe' age=30
+    #> name=None age=25
+    #> name=None age=25
+    #> name=None age=25
+    #> name=None age=25
+    #> name=None age=25
+    #> name=None age=25
+    #> name='John Doe' age=25
     # name=None age=None
     # name='' age=None
     # name='John' age=None
@@ -407,8 +330,8 @@ users = client.chat.completions.create_iterable(
 
 for user in users:
     print(user)
-    #> name='John Doe' age=30
-    #> name='Jane Doe' age=28
+    #> name='John' age=30
+    #> name='Jane' age=25
     # User(name='John Doe', age=30)
     # User(name='Jane Smith', age=25)
 ```

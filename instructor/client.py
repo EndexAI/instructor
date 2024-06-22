@@ -7,12 +7,15 @@ from .utils import Provider, get_provider
 from openai.types.chat import ChatCompletionMessageParam
 from typing import (
     TypeVar,
+    Generator,
+    Iterable,
     Callable,
     overload,
     Union,
+    Awaitable,
+    AsyncGenerator,
     Any,
 )
-from collections.abc import Generator, Iterable, Awaitable, AsyncGenerator
 from typing_extensions import Self
 from pydantic import BaseModel
 from instructor.dsl.partial import Partial
@@ -56,7 +59,7 @@ class Instructor:
 
     @overload
     def create(
-        self: AsyncInstructor,
+        self: "AsyncInstructor",
         response_model: type[T],
         messages: list[ChatCompletionMessageParam],
         max_retries: int = 3,
@@ -85,7 +88,7 @@ class Instructor:
         validation_context: dict[str, Any] | None = None,
         strict: bool = True,
         **kwargs: Any,
-    ) -> T | Awaitable[T]:
+    ) -> Union[T, Awaitable[T]]:
         kwargs = self.handle_kwargs(kwargs)
 
         return self.create_fn(
@@ -99,7 +102,7 @@ class Instructor:
 
     @overload
     def create_partial(
-        self: AsyncInstructor,
+        self: "AsyncInstructor",
         response_model: type[T],
         messages: list[ChatCompletionMessageParam],
         max_retries: int = 3,
@@ -127,7 +130,9 @@ class Instructor:
         validation_context: dict[str, Any] | None = None,
         strict: bool = True,
         **kwargs: Any,
-    ) -> Generator[T, None, None] | AsyncGenerator[T, None]:
+    ) -> Union[Generator[T, None, None], AsyncGenerator[T, None]]:
+        assert self.provider != Provider.ANTHROPIC, "Anthropic doesn't support partial"
+
         kwargs["stream"] = True
 
         kwargs = self.handle_kwargs(kwargs)
@@ -144,7 +149,7 @@ class Instructor:
 
     @overload
     def create_iterable(
-        self: AsyncInstructor,
+        self: "AsyncInstructor",
         messages: list[ChatCompletionMessageParam],
         response_model: type[T],
         max_retries: int = 3,
@@ -172,7 +177,9 @@ class Instructor:
         validation_context: dict[str, Any] | None = None,
         strict: bool = True,
         **kwargs: Any,
-    ) -> Generator[T, None, None] | AsyncGenerator[T, None]:
+    ) -> Union[Generator[T, None, None], AsyncGenerator[T, None]]:
+        assert self.provider != Provider.ANTHROPIC, "Anthropic doesn't support iterable"
+
         kwargs["stream"] = True
         kwargs = self.handle_kwargs(kwargs)
 
@@ -188,7 +195,7 @@ class Instructor:
 
     @overload
     def create_with_completion(
-        self: AsyncInstructor,
+        self: "AsyncInstructor",
         messages: list[ChatCompletionMessageParam],
         response_model: type[T],
         max_retries: int = 3,
@@ -216,7 +223,7 @@ class Instructor:
         validation_context: dict[str, Any] | None = None,
         strict: bool = True,
         **kwargs: Any,
-    ) -> tuple[T, Any] | Awaitable[tuple[T, Any]]:
+    ) -> Union[tuple[T, Any], Awaitable[tuple[T, Any]]]:
         kwargs = self.handle_kwargs(kwargs)
         model = self.create_fn(
             messages=messages,
@@ -307,6 +314,8 @@ class AsyncInstructor(Instructor):
         strict: bool = True,
         **kwargs: Any,
     ) -> AsyncGenerator[T, None]:
+        assert self.provider != Provider.ANTHROPIC, "Anthropic doesn't support iterable"
+
         kwargs = self.handle_kwargs(kwargs)
         kwargs["stream"] = True
         async for item in await self.create_fn(
@@ -359,7 +368,7 @@ def from_openai(
 
 
 def from_openai(
-    client: openai.OpenAI | openai.AsyncOpenAI,
+    client: Union[openai.OpenAI, openai.AsyncOpenAI],
     mode: instructor.Mode = instructor.Mode.TOOLS,
     **kwargs: Any,
 ) -> Instructor | AsyncInstructor:
@@ -372,8 +381,8 @@ def from_openai(
         import warnings
 
         warnings.warn(
-            "Client should be an instance of openai.OpenAI or openai.AsyncOpenAI. Unexpected behavior may occur with other client types.",
-            stacklevel=2,
+            "Client should be an instance of openai.OpenAI or openai.AsyncOpenAI. "
+            "Unexpected behavior may occur with other client types."
         )
 
     if provider in {Provider.ANYSCALE, Provider.TOGETHER}:
@@ -383,11 +392,6 @@ def from_openai(
             instructor.Mode.JSON_SCHEMA,
             instructor.Mode.MD_JSON,
         }
-
-    if provider in {Provider.DATABRICKS}:
-        assert mode in {
-            instructor.Mode.MD_JSON
-        }, "Databricks provider only supports `MD_JSON` mode."
 
     if provider in {Provider.OPENAI}:
         assert mode in {

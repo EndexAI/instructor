@@ -1,11 +1,9 @@
-from typing import Any, Union
-from collections.abc import Awaitable
+from typing import Any, Awaitable, List, Union
 from datetime import datetime, timedelta
 import typer
 import os
 import aiohttp
 import asyncio
-from builtins import list as List
 from collections import defaultdict
 from rich.console import Console
 from rich.table import Table
@@ -49,10 +47,6 @@ async def get_usage_for_past_n_days(n_days: int) -> list[dict[str, Any]]:
 
 # Define the cost per unit for each model
 MODEL_COSTS = {
-    "gpt-4o": {"prompt": 0.005 / 1000, "completion": 0.015 / 1000},
-    "gpt-4o-2024-05-13": {"prompt": 0.005 / 1000, "completion": 0.015 / 1000},
-    "gpt-4-turbo": {"prompt": 0.01 / 1000, "completion": 0.03 / 1000},
-    "gpt-4-turbo-2024-04-09": {"prompt": 0.01 / 1000, "completion": 0.03 / 1000},
     "gpt-4-0125-preview": {"prompt": 0.01 / 1000, "completion": 0.03 / 1000},
     "gpt-4-turbo-preview": {"prompt": 0.01 / 1000, "completion": 0.03 / 1000},
     "gpt-4-1106-preview": {"prompt": 0.01 / 1000, "completion": 0.03 / 1000},
@@ -88,12 +82,8 @@ def get_model_cost(
         return MODEL_COSTS["gpt-3.5-turbo-16k"]
     elif model.startswith("gpt-3.5-turbo"):
         return MODEL_COSTS["gpt-3.5-turbo"]
-    elif model.startswith("gpt-4-turbo"):
-        return MODEL_COSTS["gpt-4-turbo-preview"]
     elif model.startswith("gpt-4-32k"):
         return MODEL_COSTS["gpt-4-32k"]
-    elif model.startswith("gpt-4o"):
-        return MODEL_COSTS["gpt-4o"]
     elif model.startswith("gpt-4"):
         return MODEL_COSTS["gpt-4"]
     else:

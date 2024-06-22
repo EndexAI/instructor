@@ -1,8 +1,13 @@
 ---
 draft: False
 date: 2023-10-23
-categories:
-  - Validation
+tags:
+  - pydantic
+  - validation
+  - guardrails
+  - constitutional ai
+  - chain of thought
+  - citations
 authors:
   - jxnl
   - ivanleomk

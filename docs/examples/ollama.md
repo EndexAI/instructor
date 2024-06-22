@@ -17,12 +17,12 @@ Instructor's patch enhances an openai api with the following features:
 
 ## Ollama
 
-Start by downloading [Ollama](https://ollama.ai/download), and then pull a model such as Llama 3 or Mistral.
+Start by downloading [Ollama](https://ollama.ai/download), and then pull a model such as Llama 2 or Mistral.
 
 !!! tip "Make sure you update your `ollama` to the latest version!"
 
 ```
-ollama pull llama3
+ollama pull llama2
 ```
 
 ```python
@@ -49,7 +49,7 @@ client = instructor.from_openai(
 )
 
 resp = client.chat.completions.create(
-    model="llama3",
+    model="llama2",
     messages=[
         {
             "role": "user",

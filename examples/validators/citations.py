@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing_extensions import Annotated
 from pydantic import BaseModel, ValidationError, ValidationInfo, AfterValidator
 from openai import OpenAI
 import instructor
