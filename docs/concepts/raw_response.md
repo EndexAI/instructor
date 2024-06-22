@@ -31,7 +31,7 @@ print(user)
 print(completion)
 """
 ChatCompletion(
-    id='chatcmpl-9TzoQBCR4ljqayllBj0U1PKfjGqiL',
+    id='chatcmpl-9AUijAMiPb1gQ3qs2bdJepRTVlWip',
     choices=[
         Choice(
             finish_reason='stop',
@@ -43,7 +43,7 @@ ChatCompletion(
                 function_call=None,
                 tool_calls=[
                     ChatCompletionMessageToolCall(
-                        id='call_Q5iev31AA2vUVoAdpBapGWK5',
+                        id='call_yAwmIEIXBdMaKvU8aXnsjdem',
                         function=Function(
                             arguments='{"name":"Jason","age":25}', name='UserExtract'
                         ),
@@ -53,10 +53,10 @@ ChatCompletion(
             ),
         )
     ],
-    created=1716936146,
+    created=1712288397,
     model='gpt-3.5-turbo-0125',
     object='chat.completion',
-    system_fingerprint=None,
+    system_fingerprint='fp_b28b39ffa8',
     usage=CompletionUsage(completion_tokens=9, prompt_tokens=82, total_tokens=91),
 )
 """

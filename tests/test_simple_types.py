@@ -1,3 +1,4 @@
+from typing import List
 from instructor.dsl import is_simple_type, Partial
 from pydantic import BaseModel
 
@@ -53,8 +54,14 @@ def test_union_simple():
 
 
 def test_iterable_not_simple():
-    from collections.abc import Iterable
+    from typing import Iterable
 
     new_type = Iterable[int]
 
     assert not is_simple_type(new_type), "Failed for type: " + str(new_type)
+
+
+def test_list_is_simple():
+    new_type = List[int]
+
+    assert is_simple_type(new_type), "Failed for type: " + str(new_type)

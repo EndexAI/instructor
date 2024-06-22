@@ -1,6 +1,6 @@
 import instructor
 
-models = ["gpt-4o"]
+models = ["gpt-4-turbo-preview"]
 modes = [
     instructor.Mode.TOOLS,
 ]

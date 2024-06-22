@@ -1,6 +1,6 @@
 from youtube_transcript_api import YouTubeTranscriptApi
 from pydantic import BaseModel, Field
-from collections.abc import Generator, Iterable
+from typing import Generator, Iterable
 import instructor
 import openai
 

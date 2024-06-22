@@ -1,5 +1,5 @@
 from itertools import product
-from collections.abc import Iterable
+from typing import Iterable
 from pydantic import BaseModel
 import pytest
 import instructor

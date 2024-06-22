@@ -1,6 +1,6 @@
 import openai
 import instructor
-from collections.abc import Iterable
+from typing import Iterable
 from pydantic import BaseModel, ConfigDict
 
 client = instructor.from_openai(openai.OpenAI())

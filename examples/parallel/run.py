@@ -3,8 +3,7 @@ from __future__ import annotations
 import openai
 import instructor
 
-from typing import Literal
-from collections.abc import Iterable
+from typing import Iterable, Literal
 from pydantic import BaseModel
 
 

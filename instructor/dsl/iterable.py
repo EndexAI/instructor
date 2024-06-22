@@ -1,5 +1,4 @@
-from typing import Any, Optional, cast, ClassVar
-from collections.abc import AsyncGenerator, Generator, Iterable
+from typing import Any, AsyncGenerator, Generator, Iterable, Optional, cast, ClassVar
 
 from pydantic import BaseModel, Field, create_model  # type: ignore - remove once Pydantic is updated
 
@@ -79,14 +78,7 @@ class IterableBase:
     ) -> Generator[str, None, None]:
         for chunk in completion:
             try:
-                if mode == Mode.ANTHROPIC_JSON:
-                    if json_chunk := chunk.delta.text:
-                        yield json_chunk
-                if mode == Mode.ANTHROPIC_TOOLS:
-                    yield chunk.delta.partial_json
-                if mode == Mode.GEMINI_JSON:
-                    yield chunk.text
-                elif chunk.choices:
+                if chunk.choices:
                     if mode == Mode.FUNCTIONS:
                         if json_chunk := chunk.choices[0].delta.function_call.arguments:
                             yield json_chunk
@@ -109,12 +101,7 @@ class IterableBase:
     ) -> AsyncGenerator[str, None]:
         async for chunk in completion:
             try:
-                if mode == Mode.ANTHROPIC_JSON:
-                    if json_chunk := chunk.delta.text:
-                        yield json_chunk
-                if mode == Mode.ANTHROPIC_TOOLS:
-                    yield chunk.delta.partial_json
-                elif chunk.choices:
+                if chunk.choices:
                     if mode == Mode.FUNCTIONS:
                         if json_chunk := chunk.choices[0].delta.function_call.arguments:
                             yield json_chunk

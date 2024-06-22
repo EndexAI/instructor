@@ -7,7 +7,7 @@ client = Groq(
     api_key=os.environ.get("GROQ_API_KEY"),
 )
 
-client = instructor.from_groq(client, mode=instructor.Mode.TOOLS)
+client = instructor.from_groq(client, mode=instructor.Mode.JSON)
 
 
 class UserExtract(BaseModel):

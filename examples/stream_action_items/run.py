@@ -1,8 +1,7 @@
 import instructor
 
 from pydantic import BaseModel, Field
-from typing import Optional
-from collections.abc import Iterable
+from typing import Iterable, Optional
 from openai import OpenAI
 from rich.console import Console
 

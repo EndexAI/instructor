@@ -11,7 +11,7 @@ Added by Jan Philipp Harries / @jpdus
 """
 
 import asyncio
-from collections.abc import Generator
+from typing import Generator
 
 from openai import OpenAI
 

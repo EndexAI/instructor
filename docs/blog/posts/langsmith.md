@@ -1,9 +1,8 @@
 ---
 draft: False
 date: 2024-02-18
-categories:
-  - LangChain
-  - Observability
+tags:
+  - langsmith
 authors:
   - jxnl
 ---
