@@ -19,14 +19,14 @@ def from_groq(
     client: groq.AsyncGroq,
     mode: instructor.Mode = instructor.Mode.TOOLS,
     **kwargs: Any,
-) -> instructor.Instructor: ...
+) -> instructor.AsyncInstructor: ...
 
 
 def from_groq(
     client: groq.Groq | groq.AsyncGroq,
     mode: instructor.Mode = instructor.Mode.TOOLS,
     **kwargs: Any,
-) -> instructor.Instructor:
+) -> instructor.Instructor | instructor.AsyncInstructor:
     assert mode in {
         instructor.Mode.JSON,
         instructor.Mode.TOOLS,
@@ -46,7 +46,7 @@ def from_groq(
         )
 
     else:
-        return instructor.Instructor(
+        return instructor.AsyncInstructor(
             client=client,
             create=instructor.patch(create=client.chat.completions.create, mode=mode),
             provider=instructor.Provider.GROQ,

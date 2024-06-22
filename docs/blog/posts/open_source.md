@@ -2,15 +2,13 @@
 draft: False
 date: 2024-03-07
 slug: open-source-local-structured-output-pydantic-json-openai
-tags:
-  - llms
-  - opensource
-  - together
-  - llama-cpp-python
-  - anyscale
-  - groq
-  - mistral
-  - ollama
+categories:
+  - Open Source
+  - Ollama
+  - Anyscale
+  - Groq
+  - Mistral
+  - Ollama
 authors:
   - jxnl
 ---
@@ -104,7 +102,7 @@ llama = llama_cpp.Llama(
 )
 
 
-create = instructor.from_openai(
+create = instructor.patch(
     create=llama.create_chat_completion_openai_v1,
     mode=instructor.Mode.JSON_SCHEMA, 
 )
